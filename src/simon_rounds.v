@@ -22,7 +22,7 @@ module simon_rounds (
     localparam S_IDLE = 0, S_PRECOMP = 1, S_CALC = 2;
     reg [1:0] state;
     
-    reg key_dir = 0; //řízení generace subklíčů
+    reg key_dir; //řízení generace subklíčů
     
     //instance generátoru subklíču
     simon_key key_gen_inst (

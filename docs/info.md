@@ -10,6 +10,7 @@ You can also include images in this folder and reference them in the markdown. E
 ## How it works
 
 Hardware implementation of the Simon block cipher (32/64 configuration) integrated with an I2C Slave interface. The design allows a Master device to write a 64-bit key and 32-bit data block, configure the operation mode (Encrypt/Decrypt), and read back the result.
+Default I2C adress **0x50**
 
 ## Register Map
 
