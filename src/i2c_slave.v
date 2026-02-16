@@ -27,6 +27,10 @@ THE SOFTWARE.
 
 //`timescale 1ns / 1ps
 `default_nettype wire
+
+/* verilator lint_off PROCASSINIT */
+/* verilator lint_off UNUSEDSIGNAL */
+
 /*
  * I2C slave
  */
@@ -512,3 +516,6 @@ always @(posedge clk) begin
 end
 
 endmodule
+
+/* verilator lint_on PROCASSINIT */
+/* verilator lint_on UNUSEDSIGNAL */

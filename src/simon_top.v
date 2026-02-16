@@ -19,6 +19,8 @@ module simon_top (
     reg  [7:0] tx_data;
     reg  tx_valid;
     wire tx_ready, i2c_busy, i2c_addressed;
+    wire [6:0] i2c_bus_address;
+    wire i2c_bus_active;
 
     //flow control, aby se nepřijímaly data během resetu
     reg rx_ready_reg;
@@ -36,7 +38,9 @@ module simon_top (
         .device_address(7'h50), //adresa tzn 0x50
         .device_address_mask(7'h7F), //maska i2c -> slave kontroluje všech 7 bit§ adresy
         .busy(i2c_busy),
+        .bus_address(i2c_bus_address),
         .bus_addressed(i2c_addressed),
+        .bus_active(i2c_bus_active),
         .m_axis_data_tdata(rx_data),
         .m_axis_data_tvalid(rx_valid),
         .m_axis_data_tready(rx_ready),
@@ -115,6 +119,7 @@ module simon_top (
                             core_start <= rx_data[0]; 
                             core_mode  <= rx_data[1]; 
                         end
+                        default: ; // neznámý registr - ignoruj
                     endcase
                     // auto-inkrementace adresy pro burst zápis
                     reg_addr_ptr <= reg_addr_ptr + 1'b1;
@@ -154,11 +159,7 @@ module simon_top (
         .done(core_done)
     );
 
-    // debug output soubor 
-    /*
-    initial begin
-        $dumpfile("cocotb_waveform.vcd");
-        $dumpvars(0, simon_top);
-    end
-    */
+    // potlačení varování nepoužitých signálů
+    wire _unused_i2c = &{rx_last, i2c_busy, i2c_bus_address, i2c_bus_active, 1'b0};
+
 endmodule
