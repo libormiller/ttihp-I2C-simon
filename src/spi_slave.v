@@ -62,32 +62,35 @@ module spi_slave (rstb,ten,tdata,mlb,ss,sck,sdin, sdout,done,rdata);
 always @(posedge sck or negedge rstb)
   begin
     if (rstb==0)
-		begin rreg = 8'h00;  rdata = 8'h00; done = 0; nb = 0; end   //
+		begin rreg <= 8'h00;  rdata <= 8'h00; done <= 0; nb <= 0; end
 	else if (!ss) begin 
 			if(mlb==0)  //LSB first, in@msb -> right shift
-				begin rreg ={sdin,rreg[7:1]}; end
+				begin rreg <={sdin,rreg[7:1]}; end
 			else     //MSB first, in@lsb -> left shift
-				begin rreg ={rreg[6:0],sdin}; end  
+				begin rreg <={rreg[6:0],sdin}; end  
 		//increment bit count
-			nb=nb+1;
-			if(nb!=8) done=0;
-			else  begin rdata=rreg; done=1; nb=0; end
-		end	 //if(!ss)_END  if(nb==8)
+			if(nb!=7) begin done<=0; nb<=nb+1; end
+			else  begin
+				if(mlb==0) rdata<={sdin,rreg[7:1]};
+				else       rdata<={rreg[6:0],sdin};
+				done<=1; nb<=0;
+			end
+		end	 //if(!ss)_END  if(nb==7)
   end
 
 //send to  sdout
 always @(negedge sck or negedge rstb)
   begin
 	if (rstb==0)
-		begin treg = 8'hFF; end
+		begin treg <= 8'hFF; end
 	else begin
 		if(!ss) begin			
-			if(nb==0) treg=tdata;
+			if(nb==0) treg<=tdata;
 			else begin
 			   if(mlb==0)  //LSB first, out=lsb -> right shift
-					begin treg = {1'b1,treg[7:1]}; end
+					begin treg <= {1'b1,treg[7:1]}; end
 			   else     //MSB first, out=msb -> left shift
-					begin treg = {treg[6:0],1'b1}; end			
+					begin treg <= {treg[6:0],1'b1}; end			
 			end
 		end //!ss
 	 end //rstb	
