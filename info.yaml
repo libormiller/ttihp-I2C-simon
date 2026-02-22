@@ -26,9 +26,9 @@ project:
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "MOSI"
-  ui[1]: "CHIP_SELECT"
-  ui[2]: "SCL"
+  ui[0]: "SCK"
+  ui[1]: "MOSI"
+  ui[2]: "CS_n"
   ui[3]: ""
   ui[4]: ""
   ui[5]: ""
