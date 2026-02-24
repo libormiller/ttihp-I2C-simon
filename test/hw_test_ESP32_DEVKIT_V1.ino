@@ -30,7 +30,8 @@
 
 // ── SPI settings ────────────────────────────────────────────────────────────
 // SPI Mode 3 = CPOL=1, CPHA=1.  1 MHz should be safe for most FPGA clocks.
-#define SPI_SPEED  1000000
+// Increased to 5 MHz for faster testing (assuming FPGA clock is >= 40 MHz)
+#define SPI_SPEED  5000000
 SPISettings spiSettings(SPI_SPEED, MSBFIRST, SPI_MODE3);
 
 // ── SPI command opcodes (must match project_top.v) ──────────────────────────
@@ -52,13 +53,13 @@ static const uint32_t CIPHER_TV = 0xC69BE9BBUL;
 
 static void spi_cs_low() {
     digitalWrite(PIN_CS, LOW);
-    delayMicroseconds(2);
+    delayMicroseconds(1);
 }
 
 static void spi_cs_high() {
-    delayMicroseconds(2);
+    delayMicroseconds(1);
     digitalWrite(PIN_CS, HIGH);
-    delayMicroseconds(5);  // inter-frame gap
+    delayMicroseconds(1);  // inter-frame gap
 }
 
 /**
@@ -163,11 +164,10 @@ static uint32_t fpga_read_result() {
  * Poll status until done or timeout.
  * Returns true on success, false on timeout.
  */
-static bool fpga_wait_done(uint32_t timeout_ms = 1000) {
-    uint32_t start = millis();
-    while ((millis() - start) < timeout_ms) {
+static bool fpga_wait_done(uint32_t timeout_us = 1000000) {
+    uint32_t start = micros();
+    while ((micros() - start) < timeout_us) {
         if (fpga_read_status()) return true;
-        delay(1);
     }
     return false;
 }
@@ -416,14 +416,11 @@ static bool test_fpga_stress(uint32_t iterations) {
     for (uint32_t i = 0; i < iterations; i++) {
         uint32_t plaintext = esp_random();
 
-        unsigned long t_iter = micros();
-
         // ── Encrypt ──
         fpga_write_block(plaintext);
         fpga_encrypt();
 
         if (!fpga_wait_done()) {
-            Serial.printf("  [%lu] FAIL — encrypt timeout  pt=0x%08lX\n", i, plaintext);
             fail_count++;
             // Re-load key for next iteration (state may be corrupt)
             fpga_write_key(key);
@@ -437,25 +434,16 @@ static bool test_fpga_stress(uint32_t iterations) {
         fpga_decrypt();
 
         if (!fpga_wait_done()) {
-            Serial.printf("  [%lu] FAIL — decrypt timeout  ct=0x%08lX\n", i, ct);
             fail_count++;
             fpga_write_key(key);
             continue;
         }
 
         uint32_t recovered = fpga_read_result();
-        unsigned long t_iter_elapsed = micros() - t_iter;
 
         if (recovered != plaintext) {
-            Serial.printf("  [%lu] FAIL  pt=0x%08lX  ct=0x%08lX  rec=0x%08lX  (%lu us)\n",
-                           i, plaintext, ct, recovered, t_iter_elapsed);
             fail_count++;
         } else {
-            // Print every 10th iteration or always if < 50 total
-            if (iterations <= 50 || (i % (iterations / 10)) == 0 || i == iterations - 1) {
-                Serial.printf("  [%lu] PASS  pt=0x%08lX  ct=0x%08lX  (%lu us)\n",
-                               i, plaintext, ct, t_iter_elapsed);
-            }
             pass_count++;
         }
     }

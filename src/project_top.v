@@ -36,6 +36,13 @@ module tt_um_libormiller_SIMON_SPI (
     input  wire       rst_n     // reset_n - low to reset
 );
 
+    // Internal Power-On Reset
+    reg [7:0] por_sr = 8'h00;
+    always @(posedge clk) begin
+        por_sr <= {por_sr[6:0], 1'b1};
+    end
+    wire internal_rst_n = por_sr[7];
+
     // Pin Mapping
     wire spi_sck   = ui_in[0];
     wire spi_mosi  = ui_in[1];
@@ -52,7 +59,8 @@ module tt_um_libormiller_SIMON_SPI (
     reg  [7:0] spi_tdata;
 
     spi_slave spi_inst (
-        .rstb  (rst_n),
+        .clk   (clk),
+        .rstb  (internal_rst_n),
         .ten   (1'b1),
         .tdata (spi_tdata),
         .mlb   (1'b1),          // MSB first
@@ -64,22 +72,23 @@ module tt_um_libormiller_SIMON_SPI (
         .rdata (spi_rdata)
     );
 
-    // Clock Domain Crossing: SCK -> CLK
-    // Synchronize 'done' signal (rising-edge detector)
-    reg [2:0] done_sync;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) done_sync <= 3'b0;
-        else        done_sync <= {done_sync[1:0], spi_done};
-    end
-    wire done_pulse = done_sync[1] & ~done_sync[2];
-
     // Synchronize CS_n (active-high after sync = CS deasserted)
-    reg [1:0] cs_sync;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) cs_sync <= 2'b11;
-        else        cs_sync <= {cs_sync[0], spi_cs_n};
+    reg [3:0] cs_sync;
+    always @(posedge clk or negedge internal_rst_n) begin
+        if (!internal_rst_n) cs_sync <= 4'b1111;
+        else                 cs_sync <= {cs_sync[2:0], spi_cs_n};
     end
-    wire cs_synced = cs_sync[1];
+    
+    reg cs_debounced;
+    always @(posedge clk or negedge internal_rst_n) begin
+        if (!internal_rst_n) cs_debounced <= 1'b1;
+        else begin
+            if (cs_sync[3:1] == 3'b000) cs_debounced <= 1'b0;
+            else if (cs_sync[3:1] == 3'b111) cs_debounced <= 1'b1;
+        end
+    end
+    wire cs_synced = cs_debounced;
+    wire done_pulse = spi_done;
 
     // Data Registers
     reg [63:0] key_reg;
@@ -118,8 +127,8 @@ module tt_um_libormiller_SIMON_SPI (
                CMD_READ_RESULT = 8'h06;
 
     // Main Control FSM (system clock domain)
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always @(posedge clk or negedge internal_rst_n) begin
+        if (!internal_rst_n) begin
             byte_cnt       <= 4'd0;
             cmd_reg        <= 8'h00;
             key_reg        <= 64'b0;
