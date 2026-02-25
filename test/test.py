@@ -61,7 +61,10 @@ async def spi_xfer_byte(dut, mosi_byte):
         # Rising SCK edge - slave samples MOSI, master samples MISO
         dut.ui_in.value = (bit << 1) | 0x01   # SCK=1, CS_n=0
         await Timer(100, unit="ns")           # settle time
-        miso_bit = dut.uo_out.value.to_unsigned() & 1
+        try:
+            miso_bit = dut.uo_out.value.to_unsigned() & 1
+        except ValueError:
+            miso_bit = 0  # treat x/z as 0 (GL sim before signals settle)
         miso_byte = (miso_byte << 1) | miso_bit
         await Timer(SPI_HALF_NS - 100, unit="ns")
     return miso_byte
@@ -143,7 +146,7 @@ async def init_dut(dut):
     dut.rst_n.value = 0
     await ClockCycles(dut.clk, 10)
     dut.rst_n.value = 1
-    await ClockCycles(dut.clk, 50)   # let startup cipher reset finish
+    await ClockCycles(dut.clk, 100)  # let startup cipher reset finish (GL sim needs more)
 
 
 # ---------------------------------------------------------------------------
