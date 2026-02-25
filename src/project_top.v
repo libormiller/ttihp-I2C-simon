@@ -36,12 +36,13 @@ module tt_um_libormiller_SIMON_SPI (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-    // Internal Power-On Reset
-    reg [7:0] por_sr = 8'h00;
-    always @(posedge clk) begin
-        por_sr <= {por_sr[6:0], 1'b1};
+    // Internal Power-On Reset (gated by external rst_n so GL sim works)
+    reg [7:0] por_sr;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) por_sr <= 8'h00;
+        else        por_sr <= {por_sr[6:0], 1'b1};
     end
-    wire internal_rst_n = por_sr[7];
+    wire internal_rst_n = por_sr[7] & rst_n;
 
     // Pin Mapping
     wire spi_sck   = ui_in[0];
